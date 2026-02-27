@@ -7,7 +7,7 @@ st.set_page_config(page_title="NeuronAI", page_icon="🧠")
 
 # 2. VALIDATION GOOGLE (CRUCIAL)
 # On utilise st.html pour injecter la balise directement sans perturber le reste
-st.html(f'<meta name="google-site-verification" content="RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY" />')
+st.html(f'<head><meta name="google-site-verification" content="RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY"/>')
 
 # 3. INTERFACE VISUELLE
 # Utilisation de l'URL brute GitHub pour le logo (méthode la plus stable)
