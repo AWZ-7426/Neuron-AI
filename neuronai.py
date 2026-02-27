@@ -33,53 +33,27 @@ def get_base64_logo(file_path):
 
 # --- 3. STYLE CSS & EN-TÊTE ---
 def apply_ui():
-    logo_b64 = get_base64_logo("neuron-ai.png")
-    logo_img = f'<img src="data:image/png;base64,{logo_b64}" class="header-logo">' if logo_b64 else ""
-    
+    # 1. On essaie de charger le logo
+    logo_html = ""
+    try:
+        if os.path.exists("neuron-ai.png"):
+            with open("neuron-ai.png", "rb") as f:
+                logo_b64 = base64.b64encode(f.read()).decode()
+            logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="max-width: 150px; margin-bottom: 20px;">'
+    except Exception as e:
+        st.error(f"Erreur chargement logo : {e}")
+
+    # 2. On affiche tout d'un coup
     st.markdown(f"""
-        <style>
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(-10px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-
-        .header-container {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding: 20px 0 40px 0;
-            animation: fadeIn 1.2s ease-out;
-        }}
-
-        .header-logo {{ 
-            max-width: 160px; 
-            height: auto; 
-            margin-bottom: 20px; 
-            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.1));
-        }}
-
-        .header-title {{ 
-            font-size: 3rem; 
-            font-weight: 800; 
-            color: #000000 !important;
-            margin: 0; 
-            letter-spacing: -1.5px; 
-        }}
-
-        .header-subtitle {{ 
-            color: #8E8E93 !important; 
-            font-size: 1.1rem; 
-            font-weight: 400;
-            margin-top: 5px; 
-        }}
-        </style>
-        
-        <div class="header-container">
-            {logo_img}
-            <div class="header-title">NeuronAI</div>
-            <div class="header-subtitle">L'intelligence collective humaine.</div>
+        <div style="text-align: center; padding: 40px 0;">
+            {logo_html}
+            <h1 style="color: #000; font-size: 3rem; margin: 0;">NeuronAI</h1>
+            <p style="color: #8E8E93; font-size: 1.2rem;">L'intelligence collective humaine.</p>
         </div>
+        <style>
+            .stApp {{ background-color: #FFFFFF; }}
+            [data-testid="stHeader"] {{ background: rgba(0,0,0,0); }}
+        </style>
     """, unsafe_allow_html=True)
     
 # --- 4. BASE DE DONNÉES ---
