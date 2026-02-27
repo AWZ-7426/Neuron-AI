@@ -13,23 +13,22 @@ st.markdown('<head><meta name="google-site-verification" content="RupwzSf8j4KZ85
 def show_header():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # On teste les deux chemins possibles pour être sûr
-        possible_paths = ["neuron-ai.png", "images/neuron-ai.png"]
-        logo_found = False
-        for path in possible_paths:
-            if os.path.exists(path):
-                st.image(path, use_container_width=True)
-                logo_found = True
-                break
+        # On définit le chemin exact par rapport à l'emplacement du script
+        # On teste plusieurs variantes pour être sûr de toucher la cible
+        current_dir = os.path.dirname(__file__)
+        img_path = os.path.join(current_dir, "images", "neuron-ai.png")
         
-        if not logo_found:
-            st.warning("Logo non trouvé. Vérifie qu'il est bien dans le dossier 'images'.")
+        if os.path.exists(img_path):
+            st.image(img_path, use_container_width=True)
+        elif os.path.exists("images/neuron-ai.png"):
+            st.image("images/neuron-ai.png", use_container_width=True)
+        elif os.path.exists("neuron-ai.png"):
+            st.image("neuron-ai.png", use_container_width=True)
+        else:
+            st.error("⚠️ Fichier introuvable. Vérifie que le nom est bien 'neuron-ai.png' (tout en minuscules) dans le dossier 'images'.")
             
     st.markdown("<h1 style='text-align: center;'>NeuronAI</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: gray;'>L'intelligence collective qui apprend de vous.</p>", unsafe_allow_html=True)
-
-show_header()
-
 # --- 3. BASE DE DONNÉES (CORRECTIF ERREUR SQL) ---
 def init_db():
     conn = sqlite3.connect('neuron_brain.db', check_same_thread=False)
