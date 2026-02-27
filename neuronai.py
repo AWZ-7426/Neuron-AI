@@ -34,47 +34,45 @@ def get_base64_logo(file_path):
 # --- 3. STYLE CSS & EN-TÊTE ---
 def apply_ui():
     logo_b64 = get_base64_logo("neuron-ai.png")
-    
-    # Construction de l'en-tête HTML
     logo_img = f'<img src="data:image/png;base64,{logo_b64}" class="header-logo">' if logo_b64 else ""
     
     st.markdown(f"""
         <style>
-        .stApp {{ background-color: #FFFFFF; }}
-        * {{ color: #000000 !important; font-family: 'Helvetica Neue', sans-serif; }}
-        
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(-10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
         .header-container {{
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
-            padding: 10px 0 30px 0;
+            padding: 20px 0 40px 0;
+            animation: fadeIn 1.2s ease-out;
         }}
-        .header-logo {{ max-width: 180px; height: auto; margin-bottom: 15px; border-radius: 10px; }}
-        .header-title {{ font-size: 2.5rem; font-weight: 800; margin: 0; letter-spacing: -1px; line-height: 1.2; }}
-        .header-subtitle {{ color: #8E8E93 !important; font-size: 1.1rem; margin-top: 5px; }}
-        
-        .stChatMessage {{ 
-            background-color: #F2F2F7 !important; 
-            border-radius: 20px !important;
-            border: none !important;
-            padding: 15px !important;
-            margin-bottom: 10px !important;
+
+        .header-logo {{ 
+            max-width: 160px; 
+            height: auto; 
+            margin-bottom: 20px; 
+            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.1));
         }}
-        
-        .stChatInput textarea {{
-            background-color: #FFFFFF !important;
-            border: 1px solid #DDD !important;
-            border-radius: 25px !important;
+
+        .header-title {{ 
+            font-size: 3rem; 
+            font-weight: 800; 
+            color: #000000 !important;
+            margin: 0; 
+            letter-spacing: -1.5px; 
         }}
-        
-        .stButton button {{
-            background-color: #000000 !important;
-            color: #FFFFFF !important;
-            border-radius: 20px !important;
-            transition: 0.3s;
+
+        .header-subtitle {{ 
+            color: #8E8E93 !important; 
+            font-size: 1.1rem; 
+            font-weight: 400;
+            margin-top: 5px; 
         }}
-        .stButton button:hover {{ transform: scale(1.02); background-color: #333 !important; }}
         </style>
         
         <div class="header-container">
@@ -83,9 +81,7 @@ def apply_ui():
             <div class="header-subtitle">L'intelligence collective humaine.</div>
         </div>
     """, unsafe_allow_html=True)
-
-apply_ui()
-
+    
 # --- 4. BASE DE DONNÉES ---
 def init_db():
     conn = sqlite3.connect('neuron_brain.db', check_same_thread=False)
