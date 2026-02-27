@@ -2,182 +2,135 @@ import streamlit as st
 import sqlite3
 import uuid
 import random
+import base64
 import os
 
-# --- STYLE INTERFACE HUMAINE AVEC LOGO (SOFT, CLEAN & PROFESSIONNEL) ---
-st.set_page_config(page_title="NeuronAI", page_icon="🧠", layout="wide")
+# --- 1. CONFIGURATION ET BALISE GOOGLE ---
+st.set_page_config(page_title="NeuronAI", page_icon="🧠", layout="centered")
 
-def apply_enhanced_style():
-    # Définition du chemin de l'image (logo)
-    # Assurez-vous d'avoir le logo dans un dossier 'images'
-    image_path = os.path.join("images", "neuron-ai.png")
-    
-    # CSS pour le style général et le logo
+# Injection de la balise Meta Google via JavaScript
+st.components.v1.html(
+    """
+    <script>
+    var meta = document.createElement('meta');
+    meta.name = "google-site-verification";
+    meta.content = "RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY";
+    parent.document.getElementsByTagName('head')[0].appendChild(meta);
+    </script>
+    """,
+    height=0,
+)
+
+# --- 2. FONCTION POUR LE LOGO (BASE64) ---
+def get_base64_logo(file_path):
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    return None
+
+# --- 3. STYLE CSS (APPLE STYLE - BLANC & NOIR) ---
+def apply_custom_style():
+    logo_b64 = get_base64_logo("neuron-ai.png")
+    logo_html = f'<img src="data:image/png;base64,{logo_b64}" class="header-logo">' if logo_b64 else ""
+
     st.markdown(f"""
         <style>
-        /* Fond de l'application doux */
-        .stApp {{ background-color: #FDFDFD; }}
+        .stApp {{ background-color: #FFFFFF; }}
+        * {{ color: #000000 !important; font-family: 'Helvetica Neue', sans-serif; }}
         
-        /* Conteneur pour le logo et le titre */
+        /* En-tête avec Logo */
         .header-container {{
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             text-align: center;
-            margin-bottom: 2rem;
-            width: 100%;
+            padding: 20px 0;
         }}
+        .header-logo {{ max-width: 150px; height: auto; margin-bottom: 10px; }}
+        .header-title {{ font-size: 2.2rem; font-weight: 800; margin: 0; letter-spacing: -1px; }}
         
-        /* Style de l'image du logo */
-        .header-logo {{
-            height: 120px; /* Ajustez la taille selon vos besoins */
-            width: auto;
-            margin-bottom: 0.5rem;
-            border-radius: 10px; /* Optionnel: coins arrondis */
-        }}
-
-        /* Style pour le titre principal (moins proéminent que le logo) */
-        .header-title {{
-            font-size: 1.5rem; /* Réduit la taille par rapport à h1 */
-            font-weight: 600;
-            color: #222;
-            margin: 0;
-            letter-spacing: 1.5px;
-            font-family: 'Helvetica Neue', sans-serif;
-        }}
-
-        /* Style des sous-titres */
-        .header-subtitle {{
-            color: #777;
-            font-weight: 300;
-            margin-top: 0.2rem;
-            margin-bottom: 2rem;
-            font-size: 0.9rem;
-        }}
-        
-        /* Style des messages du chat */
+        /* Bulles de Chat */
         .stChatMessage {{ 
-            background-color: #FFFFFF !important; 
+            background-color: #F2F2F7 !important; 
             border-radius: 20px !important;
-            padding: 20px !important;
-            margin-bottom: 12px !important;
-            border: 1px solid #EDEDED !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03); /* Ombre douce */
-            color: #1A1A1A !important;
-            font-family: 'Helvetica Neue', sans-serif;
+            border: none !important;
+            padding: 15px !important;
+            margin-bottom: 10px !important;
         }}
         
-        /* Sidebar (menu) */
-        .css-1d391kg {{ background-color: #F8F9FA !important; border-right: 1px solid #EEEEEE; }}
-        
-        /* Boutons arrondis */
-        .stButton button {{
-            border-radius: 50px !important;
-            border: 1px solid #222 !important;
-            background-color: #FFFFFF !important;
-            color: #222 !important;
-            padding: 0.5rem 2rem !important;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }}
-        .stButton button:hover {{
-            background-color: #222 !important;
-            color: #FFFFFF !important;
-            transform: translateY(-1px); /* Effet de lévitation */
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }}
-        
-        /* Inputs texte */
+        /* Input */
         .stChatInput textarea {{
             background-color: #FFFFFF !important;
-            border-radius: 15px !important;
-            border: 1px solid #DDDDDD !important;
-            padding: 10px !important;
+            border: 1px solid #DDD !important;
+            border-radius: 25px !important;
+        }}
+
+        /* Sidebar */
+        .css-1d391kg {{ background-color: #FAFAFA !important; }}
+        .stButton button {{
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border-radius: 20px !important;
+            border: none !important;
         }}
         </style>
+        
+        <div class="header-container">
+            {logo_html}
+            <p class="header-title">NeuronAI</p>
+            <p style="color: #8E8E93 !important;">L'intelligence collective humaine.</p>
+        </div>
     """, unsafe_allow_html=True)
-    
-    # Affichage du logo et du titre via HTML/CSS injecté
-    # (Le texte du titre est inclus dans le conteneur du logo pour un meilleur centrage)
-    if os.path.exists(image_path):
-        # Utilisation de balise img HTML pour le logo avec une classe CSS pour le centrage
-        st.markdown(f'''
-            <div class="header-container">
-                <img src="app/static/{image_path}" class="header-logo" alt="NeuronAI Logo">
-                <p class="header-title">NeuronAI</p>
-                <p class="header-subtitle">L'intelligence collective qui apprend de vous.</p>
-            </div>
-        ''', unsafe_allow_html=True)
-    else:
-        # Fallback si l'image n'est pas trouvée
-        st.markdown('''
-            <div class="header-container">
-                <p class="header-title">NeuronAI</p>
-                <p class="header-subtitle">L'intelligence collective qui apprend de vous.</p>
-            </div>
-        ''', unsafe_allow_html=True)
 
-apply_enhanced_style()
+apply_custom_style()
 
-# --- LOGIQUE DU CERVEAU (SQLite) - INCHAngée ---
-# Assurez-vous que cette partie est déjà présente ou ajoutez-la si nécessaire
-# (init_db, search_memory, learn, update_vote...)
+# --- 4. LOGIQUE DE LA BASE DE DONNÉES ---
 def init_db():
     conn = sqlite3.connect('neuron_brain.db', check_same_thread=False)
-    # Ajout d'une colonne user_id pour l'identifiant unique
-    conn.execute('CREATE TABLE IF NOT EXISTS brain (id INTEGER PRIMARY KEY, user_id TEXT, prompt TEXT, response TEXT, votes INTEGER)')
+    conn.execute('''CREATE TABLE IF NOT EXISTS brain 
+                 (id INTEGER PRIMARY KEY, user_id TEXT, prompt TEXT, response TEXT, votes INTEGER)''')
     conn.commit()
     conn.close()
 
 def search_memory(text):
     conn = sqlite3.connect('neuron_brain.db')
-    # Utilisation de LIKE pour une recherche plus floue
-    res = conn.execute("SELECT response FROM brain WHERE prompt LIKE ? AND votes > 0 ORDER BY votes DESC LIMIT 1", ('%'+text+'%',)).fetchone()
+    res = conn.execute("SELECT response FROM brain WHERE prompt LIKE ? AND votes >= 0 ORDER BY votes DESC LIMIT 1", 
+                       ('%'+text+'%',)).fetchone()
     conn.close()
     return res[0] if res else None
 
-def save_memory(uid, p, r):
+def get_suggestions():
     conn = sqlite3.connect('neuron_brain.db')
-    c = conn.cursor()
-    # On insère l'identifiant unique avec la question et la réponse
-    c.execute("INSERT INTO brain (user_id, prompt, response, votes) VALUES (?, ?, ?, 0)", (uid, p, r))
-    last_id = c.lastrowid
-    conn.commit()
+    res = conn.execute("SELECT prompt FROM brain WHERE votes > 0 ORDER BY RANDOM() LIMIT 2").fetchall()
     conn.close()
-    return last_id
-
-def update_vote(id, val):
-    conn = sqlite3.connect('neuron_brain.db')
-    conn.execute("UPDATE brain SET votes = votes + ? WHERE id = ?", (val, id))
-    conn.commit()
-    conn.close()
+    return [r[0] for r in res]
 
 init_db()
 
-# --- GESTION DE L'IDENTIFIANT UNIQUE - INCHAngée ---
-# Assurez-vous que cette partie est déjà présente ou ajoutez-la
+# --- 5. GESTION DE LA SESSION ---
 if "user_id" not in st.session_state:
-    # On génère un identifiant unique pour cette session (par navigateur)
     st.session_state.user_id = str(uuid.uuid4())
-
-# --- INITIALISATION SESSION ET AFFICHAGE DU CHAT - INCHAngée ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "waiting_for_learning" not in st.session_state:
     st.session_state.waiting_for_learning = False
-if "temp_q" not in st.session_state:
-    st.session_state.temp_q = ""
-if "last_id" not in st.session_state:
-    st.session_state.last_id = None
 
-# Affichage des messages
+# Sidebar pour l'ID utilisateur
+with st.sidebar:
+    st.write("### 👤 Ma Session")
+    user_input_id = st.text_input("ID de session :", value=st.session_state.user_id)
+    if st.button("Restaurer l'historique"):
+        st.session_state.user_id = user_input_id
+        st.rerun()
+    st.caption("Utilisez cet ID pour retrouver vos discussions sur d'autres appareils.")
+
+# --- 6. INTERFACE DE CHAT ---
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+        st.write(m["content"])
 
-# --- LOGIQUE DU CHAT INPUT - INCHAngée ---
-if prompt := st.chat_input("Discutons..."):
+if prompt := st.chat_input("Posez une question ou apprenez-moi quelque chose..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
@@ -185,62 +138,37 @@ if prompt := st.chat_input("Discutons..."):
     with st.chat_message("assistant"):
         txt = prompt.lower().strip()
         
-        # 1. RÉPONSE À UNE DEMANDE D'EXPLICATION (SCÉNARIO B)
+        # Scénario Apprentissage (L'IA a posé une question avant)
         if st.session_state.waiting_for_learning:
-            ans = f"Merci beaucoup ! J'ai bien mémorisé cela dans ma base. Pour '{st.session_state.temp_q}', la réponse est maintenant : {prompt}."
-            # On enregistre l'ID unique avec la mémoire
-            st.session_state.last_id = save_memory(st.session_state.user_id, st.session_state.temp_q, prompt)
+            ans = random.choice([
+                "C'est noté ! Merci de m'avoir aidé à comprendre.",
+                "Génial, j'ai enregistré cette information dans mon cerveau.",
+                "Merci ! Je saurai quoi répondre maintenant."
+            ])
+            conn = sqlite3.connect('neuron_brain.db')
+            conn.execute("INSERT INTO brain (user_id, prompt, response, votes) VALUES (?, ?, ?, 1)", 
+                         (st.session_state.user_id, st.session_state.temp_q, prompt))
+            conn.commit()
+            conn.close()
             st.session_state.waiting_for_learning = False
         
-        # 2. SALUTATIONS ET PROACTION (SCÉNARIO C / HUMAINE)
-        elif any(word in txt for word in ["salut", "bonjour", "hello"]):
-            ans = random.choice([
-                "Bonjour ! Je suis NeuronAI. Comment puis-je vous aider aujourd'hui ?",
-                "Salut ! J'apprends de chaque conversation. Quelle est votre question ?",
-                "Bonjour ! Toujours un plaisir de discuter. Qu'aimeriez-vous savoir ?"
-            ])
-            
-        # 3. RECHERCHE EN MÉMOIRE (SCÉNARIO A)
+        # Scénario Salutations
+        elif any(w in txt for w in ["salut", "bonjour", "hello", "coucou"]):
+            ans = "Bonjour ! Je suis NeuronAI. De quoi souhaites-tu discuter aujourd'hui ?"
+        
+        # Scénario Recherche / Proactivité
         else:
             knowledge = search_memory(txt)
             if knowledge:
-                # Réponse humaine proactive
-                ans = random.choice([
-                    f"Oh, je connais la réponse ! {knowledge}.",
-                    f"D'après mes connaissances actuelles, {knowledge}. Est-ce bien cela ?",
-                    f"J'ai déjà appris cela ! La réponse est {knowledge}."
-                ])
-                #st.session_state.waiting_for_learning = False # Réinitialise l'état
+                ans = f"Je pense savoir : {knowledge}. Est-ce que cela t'aide ?"
             else:
-                # Échec de la recherche : demande d'explication (SCÉNARIO B)
-                ans = random.choice([
-                    "C'est une excellente question, mais je crains de ne pas encore avoir la réponse. Pourriez-vous m'éclairer ?",
-                    "Je ne connais pas encore ce sujet... Auriez-vous la gentillesse de m'expliquer ce que cela signifie ?",
-                    "Je suis encore en phase d'apprentissage. Si vous m'expliquez, je m'en souviendrai pour toujours."
-                ])
+                sugg = get_suggestions()
+                if sugg:
+                    ans = f"Je ne connais pas encore '{prompt}'. Peux-tu m'expliquer ? (Ou alors, on peut parler de : *{', '.join(sugg)}*)"
+                else:
+                    ans = "Je ne connais pas encore cela. Peux-tu m'expliquer ce que c'est pour que je l'apprenne ?"
                 st.session_state.waiting_for_learning = True
-                st.session_state.temp_q = prompt # Mémorise la question
+                st.session_state.temp_q = txt
 
-        st.markdown(ans)
+        st.write(ans)
         st.session_state.messages.append({"role": "assistant", "content": ans})
-
-# --- FEEDBACK VOTES (Optionnel, dans la sidebar) ---
-with st.sidebar:
-    st.write("### Identifiant Unique :")
-    st.code(st.session_state.user_id, language=None)
-    st.caption("Conservez cet ID pour retrouver votre historique.")
-
-    if st.session_state.last_id:
-        st.write("---")
-        st.write("Est-ce une bonne réponse ?")
-        c1, c2, _ = st.columns([1, 1, 2])
-        with c1:
-            if st.button("👍"):
-                update_vote(st.session_state.last_id, 1)
-                st.toast("Appris !")
-                st.session_state.last_id = None
-        with c2:
-            if st.button("👎"):
-                update_vote(st.session_state.last_id, -1)
-                st.toast("Oublié.")
-                st.session_state.last_id = None
