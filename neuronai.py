@@ -3,6 +3,95 @@ import sqlite3
 import time
 from groq import Groq
 
+# --- CONFIGURATION ---
+st.set_page_config(page_title="NeuronAI", page_icon="🧠", layout="wide")
+
+# --- BASE DE DONNÉES ---
+def init_db():
+    conn = sqlite3.connect('neuron_brain_v3.db', check_same_thread=False)
+    conn.execute('CREATE TABLE IF NOT EXISTS memory (prompt TEXT PRIMARY KEY, response TEXT, verified INTEGER DEFAULT 0)')
+    conn.commit()
+    return conn
+
+conn = init_db()
+
+# --- BARRE LATÉRALE ---
+with st.sidebar:
+    st.image("https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png", width=120)
+    st.title("Paramètres")
+    user_api_key = st.text_input("Clé API Groq (Requis pour vérification)", type="password", placeholder="gsk_...")
+    st.info("La vérification par Groq permet d'éviter les fausses informations.")
+
+# --- FONCTION DE VÉRIFICATION PAR L'IA ---
+def valider_savoir(question, reponse, api_key):
+    try:
+        client = Groq(api_key=api_key)
+        verif_prompt = f"""
+        En tant que modérateur de connaissances, analyse ce couple Question/Réponse.
+        Question : {question}
+        Réponse proposée : {reponse}
+        
+        Réponds uniquement par 'VRAI' si la réponse est correcte et polie, ou 'FAUX' si elle est fausse, insultante ou incohérente.
+        """
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "system", "content": "Tu es un vérificateur de faits rigoureux."},
+                      {"role": "user", "content": verif_prompt}],
+            max_tokens=5
+        )
+        resultat = completion.choices[0].message.content.strip().upper()
+        return "VRAI" in resultat
+    except Exception:
+        return False
+
+# --- INTERFACE PRINCIPALE ---
+st.title("🧠 NeuronAI")
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for m in st.session_state.messages:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
+
+if prompt := st.chat_input("Posez votre question..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        # 1. Vérification Mémoire Locale
+        res_sql = conn.execute("SELECT response FROM memory WHERE prompt = ?", (prompt.lower().strip(),)).fetchone()
+        
+        if res_sql:
+            st.markdown(f"💡 **Savoir enregistré :** {res_sql[0]}")
+        else:
+            st.write("Je ne connais pas encore la réponse.")
+
+    # 2. Zone d'apprentissage avec VÉRIFICATION
+    if not res_sql:
+        with st.expander("🎓 Enseigner à NeuronAI (Vérifié par l'IA)", expanded=True):
+            if not user_api_key:
+                st.warning("Veuillez entrer votre clé API dans la barre latérale pour soumettre un savoir.")
+            else:
+                new_info = st.text_input("Réponse à mémoriser :", key=f"input_{time.time()}")
+                if st.button("Soumettre pour vérification"):
+                    with st.spinner("Analyse du savoir par Groq..."):
+                        is_valid = valider_savoir(prompt, new_info, user_api_key)
+                        
+                        if is_valid:
+                            conn.execute("INSERT OR REPLACE INTO memory (prompt, response, verified) VALUES (?, ?, 1)", 
+                                         (prompt.lower().strip(), new_info))
+                            conn.commit()
+                            st.success("✅ Savoir validé et enregistré !")
+                            st.balloons()
+                        else:
+                            st.error("❌ Savoir rejeté : L'information semble incorrecte ou inappropriée.")
+import streamlit as st
+import sqlite3
+import time
+from groq import Groq
+
 # --- 1. CONFIGURATION DE LA PAGE ---
 st.set_page_config(
     page_title="NeuronAI", 
