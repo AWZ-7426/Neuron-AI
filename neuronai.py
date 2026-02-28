@@ -22,7 +22,8 @@ components.html(
 
 # 3. FILTRE DE VULGARITÉ ET GRAMMAIRE
 # Ajoutez vos mots interdits ici
-MOTS_INTERDITS = ["insulte1", "insulte2", "vulgarité3"] 
+MOTS_INTERDITS = ["connard","connasse","abruti","gros con","con","salope","va te faire foutre","casse-toi","bordel","putain","connard","taré","degenere","chieur","connard"]
+
 
 def est_propre(texte):
     for mot in MOTS_INTERDITS:
