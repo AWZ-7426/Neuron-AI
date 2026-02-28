@@ -1,105 +1,115 @@
 import streamlit as st
 import sqlite3
+import time
 from groq import Groq
 
-# --- CONFIGURATION (POUR GOOGLE & BING) ---
-st.set_page_config(page_title="NeuronAI", page_icon="🧠", layout="wide")
+# --- 1. CONFIGURATION DE LA PAGE ---
+st.set_page_config(
+    page_title="NeuronAI", 
+    page_icon="🧠", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Balises de validation DNS/Meta
-st.markdown('<meta name="google-site-verification" content="RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY" />', unsafe_allow_html=True)
-st.markdown('<meta name="msvalidate.01" content="BA1A2EF4B67CEB856BA0329B7C545711" />', unsafe_allow_html=True)
+# Style CSS personnalisé pour une interface plus moderne
+st.markdown("""
+    <style>
+    .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
+    .stButton>button { width: 100%; border-radius: 20px; }
+    .api-box { background-color: #f0f2f6; padding: 20px; border-radius: 15px; border-left: 5px solid #ff4b4b; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- BASE DE DONNÉES ---
+# --- 2. BASE DE DONNÉES ---
 def init_db():
-    conn = sqlite3.connect('neuron_brain.db', check_same_thread=False)
-    conn.execute('CREATE TABLE IF NOT EXISTS memory (prompt TEXT PRIMARY KEY, response TEXT)')
+    conn = sqlite3.connect('neuron_brain_v2.db', check_same_thread=False)
+    conn.execute('CREATE TABLE IF NOT EXISTS memory (prompt TEXT PRIMARY KEY, response TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)')
     conn.commit()
     return conn
 
 conn = init_db()
 
-# --- BARRE LATÉRALE (GESTION DE LA CLÉ) ---
+# --- 3. BARRE LATÉRALE (UX AMÉLIORÉE) ---
 with st.sidebar:
-    st.image("https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png", width=100)
+    st.image("https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png", width=120)
     st.title("Configuration")
     
-    # Zone de saisie sécurisée pour la clé API
-    user_api_key = st.text_input(
-        "Clé API Groq", 
-        type="password", 
-        help="Obtenez une clé gratuite sur console.groq.com. Votre clé n'est pas enregistrée sur nos serveurs.",
-        placeholder="gsk_..."
-    )
+    with st.expander("🔑 Aide : Obtenir une clé API", expanded=False):
+        st.write("""
+        1. Allez sur [Groq Cloud](https://console.groq.com/keys).
+        2. Connectez-vous et cliquez sur **Create API Key**.
+        3. Copiez-collez la clé ici. 
+        *C'est gratuit et instantané !*
+        """)
     
-    if user_api_key:
-        st.success("Clé activée ! ✅")
-    else:
-        st.warning("⚠️ Entrez une clé pour activer l'IA générative.")
+    user_api_key = st.text_input("Clé API Groq", type="password", placeholder="gsk_...")
     
-    st.write("---")
+    st.divider()
+    
+    # Statistiques visuelles
     count = conn.execute("SELECT count(*) FROM memory").fetchone()[0]
-    st.metric("Mémoire collective", f"{count} faits")
+    st.metric(label="Connaissances stockées", value=count, delta="Collectif")
+    
+    if st.button("🗑️ Effacer la conversation"):
+        st.session_state.messages = []
+        st.rerun()
 
-# --- INITIALISATION CLIENT GROQ ---
+# --- 4. LOGIQUE DE RÉPONSE ---
 def get_ai_response(prompt, api_key):
     try:
         client = Groq(api_key=api_key)
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
-            messages=[
-                {"role": "system", "content": "Tu es NeuronAI, une IA collaborative qui complète sa mémoire locale."},
-                {"role": "user", "content": prompt}
-            ],
+            messages=[{"role": "system", "content": "Tu es NeuronAI. Sois concis et utile."},
+                      {"role": "user", "content": prompt}],
         )
         return completion.choices[0].message.content
     except Exception as e:
-        return f"❌ Erreur API : Assurez-vous que votre clé est valide. ({str(e)})"
+        return f"Erreur : Clé invalide ou problème réseau. ({e})"
 
-# --- INTERFACE DE CHAT ---
+# --- 5. INTERFACE PRINCIPALE ---
 st.title("🧠 NeuronAI")
+st.caption("L'IA qui apprend grâce à vous. Chaque question sans réponse est une opportunité d'apprentissage.")
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [{"role": "assistant", "content": "Bonjour ! Je suis NeuronAI. Posez-moi une question ou apprenez-moi quelque chose de nouveau."}]
 
-# Affichage de l'historique
+# Affichage fluide des messages
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
 # Entrée utilisateur
-if prompt := st.chat_input("Posez une question ou apprenez-moi quelque chose..."):
+if prompt := st.chat_input("Que voulez-vous savoir ?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # 1. Priorité à la mémoire locale (SQLite)
+        # Recherche locale
         res_sql = conn.execute("SELECT response FROM memory WHERE prompt = ?", (prompt.lower().strip(),)).fetchone()
         
         if res_sql:
-            full_response = f"**[Mémoire collective]** : {res_sql[0]}"
-            st.markdown(full_response)
-        
-        # 2. Appel à l'IA si la clé est présente
+            response = f"💡 **Mémoire collective :** {res_sql[0]}"
+            st.markdown(response)
         elif user_api_key:
-            with st.spinner("L'IA réfléchit..."):
-                full_response = get_ai_response(prompt, user_api_key)
-                st.markdown(full_response)
-        
-        # 3. Message si rien n'est disponible
+            with st.spinner("🧠 NeuronAI réfléchit via le réseau neuronal..."):
+                response = get_ai_response(prompt, user_api_key)
+                st.write_stream((m for m in response.split(" "))) # Effet d'écriture en direct
         else:
-            full_response = "Je ne connais pas la réponse et aucune clé API n'est configurée pour me permettre de chercher plus loin."
-            st.info(full_response)
-        
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+            response = "🤷 Je ne connais pas encore la réponse et aucune clé API n'est configurée."
+            st.info(response)
+            
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
-    # Zone d'apprentissage (Expander)
-    with st.expander("Enseigner la réponse à NeuronAI"):
-        learn_val = st.text_input("Réponse souhaitée :", key=f"input_{prompt}")
-        if st.button("Mémoriser"):
-            if learn_val:
-                conn.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (prompt.lower().strip(), learn_val))
-                conn.commit()
-                st.success("Merci ! Cette information est maintenant gravée dans ma mémoire collective.")
-            else:
-                st.error("Veuillez entrer une réponse.")
+    # Option d'enseignement (plus élégante)
+    if not res_sql:
+        with st.chat_message("assistant", avatar="🎓"):
+            st.write("Voulez-vous m'apprendre la réponse pour la prochaine fois ?")
+            new_info = st.text_input("Réponse à enregistrer :", key=f"learn_{time.time()}")
+            if st.button("Enregistrer le savoir"):
+                if new_info:
+                    conn.execute("INSERT OR REPLACE INTO memory (prompt, response) VALUES (?, ?)", (prompt.lower().strip(), new_info))
+                    conn.commit()
+                    st.success("Savoir mémorisé ! Merci pour votre contribution.")
+                    st.balloons() # Petit effet de fête pour l'engagement
