@@ -1,46 +1,65 @@
 import streamlit as st
 import sqlite3
-import spacy
 
-# --- 1. CONFIGURATION & VALIDATION (PRIORITÉ GOOGLE/BING) ---
+# --- 1. CONFIGURATION & VALIDATION (PRIORITÉ ABSOLUE) ---
 st.set_page_config(page_title="NeuronAI", page_icon="🧠")
 
-# Ces lignes sont lues immédiatement par les robots Google et Bing
+# Ces lignes sont injectées directement pour Google et Bing
 st.markdown('<meta name="google-site-verification" content="RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY" />', unsafe_allow_html=True)
 st.markdown('<meta name="msvalidate.01" content="BA1A2EF4B67CEB856BA0329B7C545711" />', unsafe_allow_html=True)
 
-# --- 2. CHARGEMENT DU MODÈLE ---
-@st.cache_resource
-def load_nlp():
-    # Puisque le modèle est dans requirements.txt, il est déjà là !
-    return spacy.load("fr_core_news_sm")
-
-nlp = load_nlp()
+# --- 2. LOGIQUE LINGUISTIQUE LÉGÈRE (SANS SPACY) ---
+def corriger_texte(texte):
+    # Liste simple de vulgarités à filtrer
+    VULGARITES = ["insulte1", "insulte2"] 
+    if any(m in texte.lower() for m in VULGARITES):
+        return None, "🚫 Propos non autorisés."
+    
+    # Correction simple des déterminants
+    mots = texte.strip().split()
+    if len(mots) == 1:
+        mot = mots[0].lower()
+        # Liste manuelle rapide pour tester
+        feminin = ["pomme", "maison", "voiture", "idée"]
+        masculin = ["soleil", "chat", "chien", "ordinateur"]
+        
+        if mot in feminin: return f"La {mot}", "OK"
+        if mot in masculin: return f"Le {mot}", "OK"
+    
+    return texte[0].upper() + texte[1:] if texte else texte, "OK"
 
 # --- 3. INTERFACE ---
 LOGO_URL = "https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png"
 st.image(LOGO_URL, width=150)
 st.title("NeuronAI")
-st.write("L'intelligence collective humaine est prête.")
 
 # --- 4. BASE DE DONNÉES ---
-conn = sqlite3.connect('brain_v5.db', check_same_thread=False)
+conn = sqlite3.connect('brain_v6.db', check_same_thread=False)
 conn.execute('CREATE TABLE IF NOT EXISTS memory (prompt TEXT PRIMARY KEY, response TEXT)')
 conn.commit()
 
-# --- 5. LOGIQUE DU CHAT ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- 5. CHAT ---
+if "temp_q" not in st.session_state:
+    st.session_state.temp_q = None
 
-for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.write(m["content"])
-
-if prompt := st.chat_input("Posez-moi une question..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if prompt := st.chat_input("Dites quelque chose..."):
     with st.chat_message("user"):
         st.write(prompt)
     
-    # Réponse simple pour tester si ça marche
     with st.chat_message("assistant"):
-        st.write("Je vous écoute et j'apprends !")
+        if st.session_state.temp_q:
+            reponse, statut = corriger_texte(prompt)
+            if statut == "OK":
+                conn.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (st.session_state.temp_q, reponse))
+                conn.commit()
+                st.write(f"Merci ! J'ai appris : {reponse}")
+                st.session_state.temp_q = None
+            else:
+                st.error(statut)
+        else:
+            res = conn.execute("SELECT response FROM memory WHERE prompt = ?", (prompt.lower().strip(),)).fetchone()
+            if res:
+                st.write(res[0])
+            else:
+                st.write(f"Je ne connais pas '{prompt}'. C'est quoi ?")
+                st.session_state.temp_q = prompt.lower().strip()
