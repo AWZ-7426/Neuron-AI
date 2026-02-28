@@ -1,13 +1,24 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import sqlite3
-import os
+import spacy
+import streamlit.components.v1 as components
 
-# 1. CONFIGURATION (Doit être la toute première commande)
+# 1. CHARGEMENT DU MODÈLE LINGUISTIQUE
+@st.cache_resource
+def load_nlp():
+    try:
+        return spacy.load("fr_core_news_sm")
+    except:
+        # Commande de secours si le modèle n'est pas encore installé
+        os.system("python -m spacy download fr_core_news_sm")
+        return spacy.load("fr_core_news_sm")
+
+nlp = load_nlp()
+
+# 2. CONFIGURATION & VALIDATION GOOGLE (SECTION HEAD)
 st.set_page_config(page_title="NeuronAI", page_icon="🧠")
 
-# 2. INJECTION CRUCIALE DANS LE <HEAD> 
-# Cette fonction force l'insertion AVANT le body pour Google
+# Injection forcée pour Google Search Console
 components.html(
     """
     <script>
@@ -20,89 +31,77 @@ components.html(
     height=0,
 )
 
-# 3. FILTRE DE VULGARITÉ ET GRAMMAIRE
-# Ajoutez vos mots interdits ici
-MOTS_INTERDITS = ["connard","connasse","abruti","gros con","con","salope","va te faire foutre","casse-toi","bordel","putain","connard","taré","degenere","chieur","connard"]
-
+# 3. LOGIQUE AVANCÉE AVEC SPACY
+def enrichir_phrase(texte):
+    doc = nlp(texte.strip())
+    if len(doc) == 0: return texte
+    
+    premier_token = doc[0]
+    
+    # Si le premier mot est un NOM sans déterminant
+    if premier_token.pos_ == "NOUN":
+        # On récupère le genre (Masculin/Féminin)
+        genre = premier_token.morph.get("Gender")
+        if "Fem" in genre:
+            return f"La {texte}"
+        else:
+            return f"Le {texte}"
+            
+    # Met une majuscule si nécessaire
+    return texte[0].upper() + texte[1:]
 
 def est_propre(texte):
-    for mot in MOTS_INTERDITS:
-        if mot in texte.lower():
+    mots_interdits = ["vulgaire1", "vulgaire2"] # À compléter
+    doc = nlp(texte.lower())
+    for token in doc:
+        if token.text in mots_interdits or token.lemma_ in mots_interdits:
             return False
     return True
 
-def ajouter_determinant(texte):
-    texte = texte.strip()
-    if not texte: return texte
-    
-    # Liste de base des déterminants et pronoms
-    protections = ['le', 'la', 'les', 'un', 'une', 'des', 'ce', 'cette', 'je', 'tu', 'il', 'elle', "l'"]
-    mots = texte.split()
-    
-    # Si le texte est un mot seul sans déterminant, on tente une correction simple
-    if len(mots) == 1 and mots[0].lower() not in protections:
-        # Par défaut, on met une majuscule. 
-        # Pour une IA plus complexe, il faudrait une bibliothèque comme Spacy
-        return texte.capitalize()
-    
-    return texte[0].upper() + texte[1:] if texte else texte
+# 4. INTERFACE & CHAT
+st.image("https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png", width=150)
+st.title("NeuronAI")
 
-# 4. INTERFACE VISUELLE
-LOGO_URL = "https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png"
-st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-st.image(LOGO_URL, width=180)
-st.header("NeuronAI")
-st.markdown("</div>", unsafe_allow_html=True)
-
-# 5. BASE DE DONNÉES
-def init_db():
-    conn = sqlite3.connect('brain_v4.db', check_same_thread=False)
-    conn.execute('CREATE TABLE IF NOT EXISTS memory (prompt TEXT PRIMARY KEY, response TEXT)')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# 6. LOGIQUE DU CHAT
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "temp_q" not in st.session_state:
     st.session_state.temp_q = None
 
+# Affichage des messages
 for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.write(m["content"])
 
 if prompt := st.chat_input("Apprenez-moi quelque chose..."):
     if not est_propre(prompt):
-        st.error("Ce message contient des mots non autorisés.")
+        st.warning("Langage non autorisé.")
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.write(prompt)
 
         with st.chat_message("assistant"):
-            text = prompt.lower().strip()
-            
             if st.session_state.temp_q:
-                # Application de la grammaire avant enregistrement
-                reponse_propre = ajouter_determinant(prompt)
+                # Utilisation de spaCy pour formater l'apprentissage
+                reponse_finale = enrichir_phrase(prompt)
+                
                 conn = sqlite3.connect('brain_v4.db')
-                conn.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (st.session_state.temp_q, reponse_propre))
+                conn.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (st.session_state.temp_q, reponse_finale))
                 conn.commit()
                 conn.close()
-                ans = f"Merci ! J'ai bien retenu : {reponse_propre}"
+                
+                ans = f"Merci ! J'ai appris que : {reponse_finale}"
                 st.session_state.temp_q = None
             else:
                 conn = sqlite3.connect('brain_v4.db')
-                res = conn.execute("SELECT response FROM memory WHERE prompt = ?", (text,)).fetchone()
+                res = conn.execute("SELECT response FROM memory WHERE prompt = ?", (prompt.lower(),)).fetchone()
                 conn.close()
                 
                 if res:
                     ans = res[0]
                 else:
-                    ans = f"Je ne connais pas encore '{prompt}'. Peux-tu m'expliquer ?"
-                    st.session_state.temp_q = text
+                    ans = f"Je ne connais pas '{prompt}'. C'est quoi ?"
+                    st.session_state.temp_q = prompt.lower()
 
             st.write(ans)
             st.session_state.messages.append({"role": "assistant", "content": ans})
