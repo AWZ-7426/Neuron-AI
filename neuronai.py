@@ -17,7 +17,6 @@ nlp = load_nlp()
 
 # 2. CONFIGURATION & VALIDATION GOOGLE (SECTION HEAD)
 st.set_page_config(page_title="NeuronAI", page_icon="🧠")
-
 # Injection forcée pour Google Search Console
 components.html(
     """
@@ -30,7 +29,6 @@ components.html(
     """,
     height=0,
 )
-
 # 3. LOGIQUE AVANCÉE AVEC SPACY
 def enrichir_phrase(texte):
     doc = nlp(texte.strip())
