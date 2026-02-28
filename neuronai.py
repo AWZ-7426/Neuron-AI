@@ -1,45 +1,57 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import sqlite3
 import os
 
-# 1. CONFIGURATION
-st.set_page_config(page_title="NeuronAI", page_icon="🧠", layout="centered")
+# 1. CONFIGURATION (Doit être la toute première commande)
+st.set_page_config(page_title="NeuronAI", page_icon="🧠")
 
-# 2. VALIDATION GOOGLE (Méthode de secours)
-# Si Google ne trouve pas le site, vérifie bien que l'URL dans la Search Console 
-# est exactement : https://neuron-ai.streamlit.app/
-st.markdown('<meta name="google-site-verification" content="RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY" />', unsafe_allow_html=True)
+# 2. INJECTION CRUCIALE DANS LE <HEAD> 
+# Cette fonction force l'insertion AVANT le body pour Google
+components.html(
+    """
+    <script>
+        var meta = document.createElement('meta');
+        meta.name = "google-site-verification";
+        meta.content = "RupwzSf8j4KZ8576pUlcVZhUoix4knzYb9CZd0YPxTY";
+        parent.document.getElementsByTagName('head')[0].appendChild(meta);
+    </script>
+    """,
+    height=0,
+)
 
-# 3. INTERFACE VISUELLE
-LOGO_URL = "https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png"
-st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
-st.image(LOGO_URL, width=180)
-st.markdown("<h1 style='color: black; margin-top: -20px;'>NeuronAI</h1>", unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# 4. MODÉRATION ET GRAMMAIRE
-VULGARITES = ["mot1", "mot2", "mot3"] # Ajoute ici les mots à bannir (en minuscules)
+# 3. FILTRE DE VULGARITÉ ET GRAMMAIRE
+# Ajoutez vos mots interdits ici
+MOTS_INTERDITS = ["insulte1", "insulte2", "vulgarité3"] 
 
 def est_propre(texte):
-    # Vérifie si un mot interdit est dans la phrase
-    for mot in VULGARITES:
+    for mot in MOTS_INTERDITS:
         if mot in texte.lower():
             return False
     return True
 
-def corriger_grammaire(texte):
+def ajouter_determinant(texte):
     texte = texte.strip()
     if not texte: return texte
     
-    # Liste de déterminants pour vérification
-    determinants = ['le', 'la', 'les', 'un', 'une', 'des', 'mon', 'ton', 'son', 'ce', 'cette', 'je', 'tu', 'il', 'elle', "l'"]
+    # Liste de base des déterminants et pronoms
+    protections = ['le', 'la', 'les', 'un', 'une', 'des', 'ce', 'cette', 'je', 'tu', 'il', 'elle', "l'"]
     mots = texte.split()
     
-    # Si le texte commence par un mot sans déterminant (ex: "Pomme")
-    if mots and mots[0].lower() not in determinants:
-        # On met au moins une majuscule pour faire propre
-        return texte[0].upper() + texte[1:]
-    return texte
+    # Si le texte est un mot seul sans déterminant, on tente une correction simple
+    if len(mots) == 1 and mots[0].lower() not in protections:
+        # Par défaut, on met une majuscule. 
+        # Pour une IA plus complexe, il faudrait une bibliothèque comme Spacy
+        return texte.capitalize()
+    
+    return texte[0].upper() + texte[1:] if texte else texte
+
+# 4. INTERFACE VISUELLE
+LOGO_URL = "https://raw.githubusercontent.com/AWZ-7426/Neuron-AI/main/Neuron-AI/images/neuron-ai.png"
+st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+st.image(LOGO_URL, width=180)
+st.header("NeuronAI")
+st.markdown("</div>", unsafe_allow_html=True)
 
 # 5. BASE DE DONNÉES
 def init_db():
@@ -50,7 +62,7 @@ def init_db():
 
 init_db()
 
-# 6. CHAT
+# 6. LOGIQUE DU CHAT
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "temp_q" not in st.session_state:
@@ -60,10 +72,9 @@ for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.write(m["content"])
 
-if prompt := st.chat_input("Discutons proprement..."):
-    # Vérification vulgarité entrée utilisateur
+if prompt := st.chat_input("Apprenez-moi quelque chose..."):
     if not est_propre(prompt):
-        st.error("Désolé, je ne peux pas traiter ce langage.")
+        st.error("Ce message contient des mots non autorisés.")
     else:
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
@@ -73,16 +84,15 @@ if prompt := st.chat_input("Discutons proprement..."):
             text = prompt.lower().strip()
             
             if st.session_state.temp_q:
-                # L'IA apprend une nouvelle réponse
-                reponse_propre = corriger_grammaire(prompt)
+                # Application de la grammaire avant enregistrement
+                reponse_propre = ajouter_determinant(prompt)
                 conn = sqlite3.connect('brain_v4.db')
                 conn.execute("INSERT OR REPLACE INTO memory VALUES (?, ?)", (st.session_state.temp_q, reponse_propre))
                 conn.commit()
                 conn.close()
-                ans = f"Merci ! J'ai mémorisé : {reponse_propre}"
+                ans = f"Merci ! J'ai bien retenu : {reponse_propre}"
                 st.session_state.temp_q = None
             else:
-                # Recherche
                 conn = sqlite3.connect('brain_v4.db')
                 res = conn.execute("SELECT response FROM memory WHERE prompt = ?", (text,)).fetchone()
                 conn.close()
@@ -90,7 +100,7 @@ if prompt := st.chat_input("Discutons proprement..."):
                 if res:
                     ans = res[0]
                 else:
-                    ans = f"Je ne connais pas '{prompt}'. Peux-tu m'expliquer ?"
+                    ans = f"Je ne connais pas encore '{prompt}'. Peux-tu m'expliquer ?"
                     st.session_state.temp_q = text
 
             st.write(ans)
