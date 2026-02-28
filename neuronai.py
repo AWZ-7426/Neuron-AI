@@ -11,7 +11,7 @@ st.markdown('<meta name="msvalidate.01" content="BA1A2EF4B67CEB856BA0329B7C54571
 # --- 2. LOGIQUE LINGUISTIQUE LÉGÈRE (SANS SPACY) ---
 def corriger_texte(texte):
     # Liste simple de vulgarités à filtrer
-    VULGARITES = ["insulte1", "insulte2"] 
+    VULGARITES =  ["connard","connasse","abruti","gros con","con","salope","va te faire foutre","casse-toi","bordel","putain","connard","taré","degenere","chieur","connard"] 
     if any(m in texte.lower() for m in VULGARITES):
         return None, "🚫 Propos non autorisés."
     
